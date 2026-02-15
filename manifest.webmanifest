@@ -1,0 +1,20 @@
+{
+  "name": "Mow Tracker",
+  "short_name": "MowTracker",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b0b0c",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABQElEQVR4nO3ZsQ2DMBQF0IuB4g3QHcQb0B3EHcQb0B3EHcQb0B3EHYQkS0s8c1o5l9y0lQqv8fYb3cCwAAAAAAAAAAAHyYQ7jv2yQKp6qk0l7wzq3b1bq8bB9m0mJ7a3d6s5w6c1d8mZ1mQp3w3Cq0s9e8gq8g7f1m9gqk3o3n0mV8S1xv1lJc3h0mYwQ0l+vXw0Yw6a9a7cQqz0n0cQm6aZ6uQh1m3cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh7z4k7kq0pYl2q8tS2QAAAAAAAAAAAPx9A1y6vQk5O5R2AAAAAElFTkSuQmCC",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABQElEQVR4nO3ZsQ2DMBQF0IuB4g3QHcQb0B3EHcQb0B3EHcQb0B3EHYQkS0s8c1o5l9y0lQqv8fYb3cCwAAAAAAAAAAAHyYQ7jv2yQKp6qk0l7wzq3b1bq8bB9m0mJ7a3d6s5w6c1d8mZ1mQp3w3Cq0s9e8gq8g7f1m9gqk3o3n0mV8S1xv1lJc3h0mYwQ0l+vXw0Yw6a9a7cQqz0n0cQm6aZ6uQh1m3cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh5m0cQm2a5t8Qh7z4k7kq0pYl2q8tS2QAAAAAAAAAAAPx9A1y6vQk5O5R2AAAAAElFTkSuQmCC",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
