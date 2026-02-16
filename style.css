@@ -81,6 +81,19 @@ body {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Active mode highlight */
+.btn.activeMode{
+  outline: 2px solid rgba(255,255,255,0.70);
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.10);
+}
+
+/* Make it extra obvious in Field Mode */
+.field-mode .fieldGrid .btn.activeMode{
+  outline: 3px solid rgba(255,255,255,0.85);
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.14);
+}
+
 .btn:active { transform: scale(0.99); }
 
 .btn.primary { background: var(--primary); border-color: transparent; }

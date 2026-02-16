@@ -43,6 +43,7 @@ const els = {
   equipBtn: document.getElementById("equipBtn"),
   undoBtn: document.getElementById("undoBtn"),
   resetBtn: document.getElementById("resetBtn"),
+  exportBtn: document.getElementById("exportBtn"),
   exportBtn2: document.getElementById("exportBtn2"),
   shareBtn2: document.getElementById("shareBtn2"),
   rangeModal: document.getElementById("rangeModal"),
@@ -178,12 +179,23 @@ function pushUndoSnapshot() {
 function undo() {
   const snap = state.history.pop();
   if (!snap) return;
+
   const restored = JSON.parse(snap);
-  state.dayStartedAt = restored.dayStartedAt;
-  state.dayEndedAt = restored.dayEndedAt;
-  state.activeMode = restored.activeMode;
-  state.activeStartedAt = restored.activeStartedAt;
+
+  state.dayStartedAt = restored.dayStartedAt ?? null;
+  state.dayEndedAt = restored.dayEndedAt ?? null;
+
+  state.isPaused = !!restored.isPaused;
+  state.pausedAt = restored.pausedAt ?? null;
+  state.pausedMode = restored.pausedMode ?? null;
+
+  state.activeMode = restored.activeMode ?? null;
+  state.activeStartedAt = restored.activeStartedAt ?? null;
+
+  state.stopCount = Number(restored.stopCount || 0);
+
   state.segments = restored.segments || [];
+
   saveState(state);
   render();
 }
@@ -192,14 +204,26 @@ function startDay() {
   if (state.dayStartedAt && !state.dayEndedAt) return;
 
   pushUndoSnapshot();
+
   state.dayStartedAt = nowMs();
   state.dayEndedAt = null;
+
+  state.isPaused = false;
+  state.pausedAt = null;
+  state.pausedMode = null;
+
   state.activeMode = null;
   state.activeStartedAt = null;
+
+  state.stopCount = 0;
   state.segments = [];
+  state.history = [];
+
   saveState(state);
+  setUiFullView(false);
   render();
 }
+
 
 function endDay() {
   if (!state.dayStartedAt || state.dayEndedAt) return;
@@ -445,36 +469,15 @@ if (els.pauseDayBtn) {
   setButtonEnabled(els.exportBtn2, started);
   setButtonEnabled(els.shareBtn2, started);
 
-  // highlight active mode button
-  for (const m of MODES) {
+  // highlight active mode button (CSS class-based)
+for (const m of MODES) {
   const b = els[`${m}Btn`];
   if (!b) continue;
-  b.style.outline = active === m ? "2px solid rgba(255,255,255,0.55)" : "none";
+  b.classList.toggle("activeMode", active === m && !state.isPaused && !ended);
 }
 
   renderLog();
   renderWeek(); 
-}
-
-function exportWeekCSV() {
-  const weekStart = startOfWeekKey(new Date());
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
-
-  const dates = listStoredDatesInRange(weekStart, weekEnd);
-  const csv = buildCsvForDates(dates);
-
-  downloadCsv(csv, `mow-tracker-week-${ymdLocal(weekStart)}.csv`);
-}
-
-function exportMonthCSV() {
-  const start = startOfMonth(new Date());
-  const end = endOfMonth(new Date());
-
-  const dates = listStoredDatesInRange(start, end);
-  const csv = buildCsvForDates(dates);
-
-  downloadCsv(csv, `mow-tracker-month-${ymdLocal(start).slice(0, 7)}.csv`);
 }
 
 function exportCSV() {
@@ -533,16 +536,6 @@ function msToPct(part, whole) {
   return `${Math.round((part / whole) * 100)}%`;
 }
 
-function startOfWeekKey(date = new Date()) {
-  // Monday-start week
-  const d = new Date(date);
-  const day = d.getDay(); // 0=Sun,1=Mon...
-  const diff = (day === 0 ? -6 : 1 - day); // move to Monday
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 function allStoredDayKeys() {
   const prefix = "mowtracker:";
   const keys = [];
@@ -590,7 +583,7 @@ function computeTotalsForState(dayState) {
 }
 
 function computeThisWeekTotals() {
-  const weekStart = startOfWeekKey(new Date());
+  const weekStart = startOfWeek(new Date());
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 7);
 
@@ -642,41 +635,6 @@ function renderWeek() {
   if (els.weekStops) els.weekStops.textContent = String(sumStops);
   if (els.weekPctMow) els.weekPctMow.textContent = msToPct(sum.mow, totalAll);
   if (els.weekPctDrive) els.weekPctDrive.textContent = msToPct(sum.drive, totalAll);
-}
-
-function ymdLocal(d) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function startOfMonth(date = new Date()) {
-  const d = new Date(date);
-  d.setDate(1);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function endOfMonth(date = new Date()) {
-  const d = startOfMonth(date);
-  d.setMonth(d.getMonth() + 1);
-  return d; // exclusive end
-}
-
-function listStoredDatesInRange(startDate, endDateExclusive) {
-  const keys = allStoredDayKeys(); // existing helper
-  const dates = [];
-
-  for (const k of keys) {
-    const dateStr = parseDayKey(k); // existing helper
-    if (!dateStr) continue;
-    const d = new Date(dateStr + "T00:00:00");
-    if (d >= startDate && d < endDateExclusive) dates.push(dateStr);
-  }
-
-  dates.sort(); // chronological
-  return dates;
 }
 
 function buildCsvForDates(dateStrs) {
@@ -1145,7 +1103,6 @@ function setup() {
   els.gasBtn.addEventListener("click", () => switchMode("gas"));
   els.equipBtn.addEventListener("click", () => switchMode("equip"));
 
-  els.backupBtn?.addEventListener("click", exportBackupJSON);
   els.shareBackupBtn?.addEventListener("click", shareBackupJSON);
   els.undoBtn.addEventListener("click", undo);
   els.resetBtn.addEventListener("click", resetToday);
