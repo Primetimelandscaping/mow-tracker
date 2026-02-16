@@ -36,20 +36,35 @@
         </div>
       </div>
 
-      <div class="grid3">
-        <div class="metric">
-          <div class="label">Drive</div>
-          <div class="value" id="totalDrive">00:00:00</div>
-        </div>
-        <div class="metric">
-          <div class="label">Mow</div>
-          <div class="value" id="totalMow">00:00:00</div>
-        </div>
-        <div class="metric">
-          <div class="label">Other</div>
-          <div class="value" id="totalOther">00:00:00</div>
-        </div>
-      </div>
+<div class="grid3">
+  <div class="metric">
+    <div class="label">Drive</div>
+    <div class="value" id="totalDrive">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Mow</div>
+    <div class="value" id="totalMow">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Break</div>
+    <div class="value" id="totalBreak">00:00:00</div>
+  </div>
+</div>
+
+<div class="grid3">
+  <div class="metric">
+    <div class="label">Gas</div>
+    <div class="value" id="totalGas">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Equipment</div>
+    <div class="value" id="totalEquip">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Other</div>
+    <div class="value" id="totalOther">00:00:00</div>
+  </div>
+</div>
 
       <div class="hint" id="hintText">Tap <b>Start Day</b> to begin.</div>
     </section>
@@ -58,10 +73,16 @@
       <button class="btn primary" id="startDayBtn">Start Day</button>
 
       <div class="grid3">
-        <button class="btn" id="driveBtn">Drive</button>
-        <button class="btn" id="mowBtn">Mow</button>
-        <button class="btn" id="otherBtn">Other</button>
-      </div>
+  <button class="btn" id="driveBtn">Drive</button>
+  <button class="btn" id="mowBtn">Mow</button>
+  <button class="btn" id="breakBtn">Break</button>
+</div>
+
+<div class="grid3">
+  <button class="btn" id="gasBtn">Gas</button>
+  <button class="btn" id="equipBtn">Equipment</button>
+  <button class="btn" id="otherBtn">Other</button>
+</div>
 
       <button class="btn danger" id="endDayBtn">End Day</button>
 

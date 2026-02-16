@@ -1,7 +1,7 @@
 // Mow Tracker — Offline daily timer (Drive/Mow/Other)
 // Stores locally in localStorage (simple + reliable for one-day totals)
 
-const MODES = ["drive", "mow", "other"];
+const MODES = ["drive", "mow", "break", "gas", "equip", "other"];
 
 const els = {
   todayLabel: document.getElementById("todayLabel"),
@@ -13,6 +13,10 @@ const els = {
   totalDrive: document.getElementById("totalDrive"),
   totalMow: document.getElementById("totalMow"),
   totalOther: document.getElementById("totalOther"),
+  totalBreak: document.getElementById("totalBreak"),
+  totalGas: document.getElementById("totalGas"),
+  totalEquip: document.getElementById("totalEquip"),
+
 
   weekTotalAll: document.getElementById("weekTotalAll"),
   weekTotalDrive: document.getElementById("weekTotalDrive"),
@@ -27,6 +31,9 @@ const els = {
   driveBtn: document.getElementById("driveBtn"),
   mowBtn: document.getElementById("mowBtn"),
   otherBtn: document.getElementById("otherBtn"),
+  breakBtn: document.getElementById("breakBtn"),
+  gasBtn: document.getElementById("gasBtn"),
+  equipBtn: document.getElementById("equipBtn"),
   undoBtn: document.getElementById("undoBtn"),
   resetBtn: document.getElementById("resetBtn"),
   exportBtn: document.getElementById("exportBtn"),
@@ -193,7 +200,7 @@ function resetToday() {
 }
 
 function computeTotals() {
-  const totals = { drive: 0, mow: 0, other: 0 };
+  const totals = { drive: 0, mow: 0, break: 0, gas: 0, equip: 0, other: 0 };
 
   for (const seg of state.segments) {
     const dur = (seg.end ?? seg.start) - seg.start;
@@ -298,6 +305,9 @@ function render() {
   els.totalAll.textContent = fmtTime(totalAll);
   els.totalDrive.textContent = fmtTime(totals.drive);
   els.totalMow.textContent = fmtTime(totals.mow);
+  els.totalBreak.textContent = fmtTime(totals.break);
+  els.totalGas.textContent = fmtTime(totals.gas);
+  els.totalEquip.textContent = fmtTime(totals.equip);
   els.totalOther.textContent = fmtTime(totals.other);
 
   if (!started) els.hintText.innerHTML = 'Tap <b>Start Day</b> to begin.';
@@ -311,6 +321,9 @@ function render() {
   setButtonEnabled(els.driveBtn, started && !ended);
   setButtonEnabled(els.mowBtn, started && !ended);
   setButtonEnabled(els.otherBtn, started && !ended);
+  setButtonEnabled(els.breakBtn, started && !ended);
+  setButtonEnabled(els.gasBtn, started && !ended);
+  setButtonEnabled(els.equipBtn, started && !ended);
 
   setButtonEnabled(els.undoBtn, state.history.length > 0);
   setButtonEnabled(els.exportBtn, started);
@@ -352,6 +365,9 @@ function exportCSV() {
   rows.push(["TOTALS"]);
   rows.push(["drive_seconds", String(Math.floor(totals.drive / 1000))]);
   rows.push(["mow_seconds", String(Math.floor(totals.mow / 1000))]);
+  rows.push(["break_seconds", String(Math.floor(totals.break / 1000))]);
+  rows.push(["gas_seconds", String(Math.floor(totals.gas / 1000))]);
+  rows.push(["equip_seconds", String(Math.floor(totals.equip / 1000))]);
   rows.push(["other_seconds", String(Math.floor(totals.other / 1000))]);
   rows.push(["total_seconds", String(Math.floor(totalAll / 1000))]);
 
@@ -481,6 +497,9 @@ function setup() {
   els.driveBtn.addEventListener("click", () => switchMode("drive"));
   els.mowBtn.addEventListener("click", () => switchMode("mow"));
   els.otherBtn.addEventListener("click", () => switchMode("other"));
+  els.breakBtn.addEventListener("click", () => switchMode("break"));
+  els.gasBtn.addEventListener("click", () => switchMode("gas"));
+  els.equipBtn.addEventListener("click", () => switchMode("equip"));
 
   els.undoBtn.addEventListener("click", undo);
   els.resetBtn.addEventListener("click", resetToday);
