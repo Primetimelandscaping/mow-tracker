@@ -14,6 +14,14 @@ const els = {
   totalMow: document.getElementById("totalMow"),
   totalOther: document.getElementById("totalOther"),
 
+  weekTotalAll: document.getElementById("weekTotalAll"),
+  weekTotalDrive: document.getElementById("weekTotalDrive"),
+  weekTotalMow: document.getElementById("weekTotalMow"),
+  weekTotalOther: document.getElementById("weekTotalOther"),
+  weekPctMow: document.getElementById("weekPctMow"),
+  weekPctDrive: document.getElementById("weekPctDrive"),
+  refreshWeekBtn: document.getElementById("refreshWeekBtn"),
+
   startDayBtn: document.getElementById("startDayBtn"),
   endDayBtn: document.getElementById("endDayBtn"),
   driveBtn: document.getElementById("driveBtn"),
@@ -315,6 +323,7 @@ function render() {
   }
 
   renderLog();
+  renderWeek(); 
 }
 
 function exportCSV() {
@@ -365,6 +374,101 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
+function msToPct(part, whole) {
+  if (!whole) return "0%";
+  return `${Math.round((part / whole) * 100)}%`;
+}
+
+function startOfWeekKey(date = new Date()) {
+  // Monday-start week
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun,1=Mon...
+  const diff = (day === 0 ? -6 : 1 - day); // move to Monday
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function allStoredDayKeys() {
+  const prefix = "mowtracker:";
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(prefix)) keys.push(k);
+  }
+  return keys;
+}
+
+function parseDayKey(storageKey) {
+  // storageKey like "mowtracker:YYYY-MM-DD"
+  const parts = storageKey.split(":");
+  return parts[1] || null;
+}
+
+function loadDayStateByDate(dateStr) {
+  const raw = localStorage.getItem(`mowtracker:${dateStr}`);
+  if (!raw) return null;
+  try {
+    const s = JSON.parse(raw);
+    if (!s || !Array.isArray(s.segments)) return null;
+    return s;
+  } catch {
+    return null;
+  }
+}
+
+function computeTotalsForState(dayState) {
+  const totals = { drive: 0, mow: 0, other: 0 };
+  for (const seg of dayState.segments || []) {
+    if (!seg || !seg.mode || seg.start == null || seg.end == null) continue;
+    const dur = Math.max(0, seg.end - seg.start);
+    if (totals[seg.mode] != null) totals[seg.mode] += dur;
+  }
+  const totalAll = totals.drive + totals.mow + totals.other;
+  return { totals, totalAll };
+}
+
+function computeThisWeekTotals() {
+  const weekStart = startOfWeekKey(new Date());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  const sum = { drive: 0, mow: 0, other: 0 };
+
+  for (const storageKey of allStoredDayKeys()) {
+    const dateStr = parseDayKey(storageKey);
+    if (!dateStr) continue;
+
+    const d = new Date(dateStr + "T00:00:00");
+    if (!(d >= weekStart && d < weekEnd)) continue;
+
+    const dayState = loadDayStateByDate(dateStr);
+    if (!dayState) continue;
+
+    const { totals } = computeTotalsForState(dayState);
+    sum.drive += totals.drive;
+    sum.mow += totals.mow;
+    sum.other += totals.other;
+  }
+
+  const totalAll = sum.drive + sum.mow + sum.other;
+  return { sum, totalAll };
+}
+
+function renderWeek() {
+  if (!els.weekTotalAll) return; // if section not present
+
+  const { sum, totalAll } = computeThisWeekTotals();
+
+  els.weekTotalAll.textContent = fmtTime(totalAll);
+  els.weekTotalDrive.textContent = fmtTime(sum.drive);
+  els.weekTotalMow.textContent = fmtTime(sum.mow);
+  els.weekTotalOther.textContent = fmtTime(sum.other);
+
+  els.weekPctMow.textContent = msToPct(sum.mow, totalAll);
+  els.weekPctDrive.textContent = msToPct(sum.drive, totalAll);
+}
+
 function setup() {
   // Register service worker for offline use
   if ("serviceWorker" in navigator) {
@@ -382,6 +486,8 @@ function setup() {
   els.resetBtn.addEventListener("click", resetToday);
   els.exportBtn.addEventListener("click", exportCSV);
 
+  els.refreshWeekBtn.addEventListener("click", renderWeek);
+
   // Keep updating live timers while day is running
   clearInterval(tickTimer);
   tickTimer = setInterval(() => {
@@ -389,6 +495,7 @@ function setup() {
   }, 500);
 
   render();
+  renderWeek(); 
 }
 
 setup();

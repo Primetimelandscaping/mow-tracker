@@ -71,6 +71,45 @@
       </div>
     </section>
 
+<section class="card" id="weekCard">
+  <div class="logHeader">
+    <div class="logTitle">This week</div>
+    <button class="btn tiny" id="refreshWeekBtn">Refresh</button>
+  </div>
+
+  <div class="grid3">
+    <div class="metric">
+      <div class="label">Total</div>
+      <div class="value" id="weekTotalAll">00:00:00</div>
+    </div>
+    <div class="metric">
+      <div class="label">Drive</div>
+      <div class="value" id="weekTotalDrive">00:00:00</div>
+    </div>
+    <div class="metric">
+      <div class="label">Mow</div>
+      <div class="value" id="weekTotalMow">00:00:00</div>
+    </div>
+  </div>
+
+  <div class="grid3" style="margin-top:10px;">
+    <div class="metric">
+      <div class="label">Other</div>
+      <div class="value" id="weekTotalOther">00:00:00</div>
+    </div>
+    <div class="metric">
+      <div class="label">Mow %</div>
+      <div class="value" id="weekPctMow">0%</div>
+    </div>
+    <div class="metric">
+      <div class="label">Drive %</div>
+      <div class="value" id="weekPctDrive">0%</div>
+    </div>
+  </div>
+
+  <div class="hint" id="weekHint">Counts days saved on this phone for the current week (Mon–Sun).</div>
+</section>
+
     <section class="card log">
       <div class="logHeader">
         <div class="logTitle">Today’s log</div>
