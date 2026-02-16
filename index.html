@@ -66,11 +66,27 @@
   </div>
 </div>
 
+<div class="grid3" style="margin-top:10px;">
+  <div class="metric">
+    <div class="label">Stops</div>
+    <div class="value" id="dayStops">0</div>
+  </div>
+  <div class="metric">
+    <div class="label">Mow %</div>
+    <div class="value" id="dayPctMow">0%</div>
+  </div>
+  <div class="metric">
+    <div class="label">Drive %</div>
+    <div class="value" id="dayPctDrive">0%</div>
+  </div>
+</div>
+
       <div class="hint" id="hintText">Tap <b>Start Day</b> to begin.</div>
     </section>
 
     <section class="buttons card">
       <button class="btn primary" id="startDayBtn">Start Day</button>
+      <button class="btn subtle" id="pauseDayBtn">Pause Day</button>
 
       <div class="grid3">
   <button class="btn" id="driveBtn">Drive</button>
@@ -93,40 +109,80 @@
     </section>
 
 <section class="card" id="weekCard">
-  <div class="logHeader">
-    <div class="logTitle">This week</div>
-    <button class="btn tiny" id="refreshWeekBtn">Refresh</button>
-  </div>
+<div class="logHeader">
+  <div class="logTitle">This Week's log</div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; align-items:center;">
+  <button class="btn tiny" id="exportBtn2">Export</button>
+  <button class="btn tiny" id="shareBtn2">Share</button>
 
-  <div class="grid3">
-    <div class="metric">
-      <div class="label">Total</div>
-      <div class="value" id="weekTotalAll">00:00:00</div>
-    </div>
-    <div class="metric">
-      <div class="label">Drive</div>
-      <div class="value" id="weekTotalDrive">00:00:00</div>
-    </div>
-    <div class="metric">
-      <div class="label">Mow</div>
-      <div class="value" id="weekTotalMow">00:00:00</div>
-    </div>
-  </div>
 
-  <div class="grid3" style="margin-top:10px;">
-    <div class="metric">
-      <div class="label">Other</div>
-      <div class="value" id="weekTotalOther">00:00:00</div>
-    </div>
-    <div class="metric">
-      <div class="label">Mow %</div>
-      <div class="value" id="weekPctMow">0%</div>
-    </div>
-    <div class="metric">
-      <div class="label">Drive %</div>
-      <div class="value" id="weekPctDrive">0%</div>
-    </div>
+  <button class="btn tiny" id="backupBtn">Backup (JSON)</button>
+  <button class="btn tiny" id="shareBackupBtn">Share Backup</button>
+
+  <button class="btn tiny" id="restoreBtn">Restore</button>
+  <input type="file" id="restoreFile" accept="application/json,.json" style="display:none;" />
+ </div>
+</div>
+
+<div class="grid3">
+  <div class="metric">
+    <div class="label">Total</div>
+    <div class="value" id="weekTotalAll">00:00:00</div>
   </div>
+  <div class="metric">
+    <div class="label">Drive</div>
+    <div class="value" id="weekTotalDrive">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Mow</div>
+    <div class="value" id="weekTotalMow">00:00:00</div>
+  </div>
+</div>
+
+<div class="grid3" style="margin-top:10px;">
+  <div class="metric">
+    <div class="label">Stops</div>
+    <div class="value" id="weekStops">0</div>
+  </div>
+  <div class="metric">
+    <div class="label">Mow %</div>
+    <div class="value" id="weekPctMow">0%</div>
+  </div>
+  <div class="metric">
+    <div class="label">Drive %</div>
+    <div class="value" id="weekPctDrive">0%</div>
+  </div>
+</div>
+
+<div class="grid3" style="margin-top:10px;">
+  <div class="metric">
+    <div class="label">Break</div>
+    <div class="value" id="weekTotalBreak">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Gas</div>
+    <div class="value" id="weekTotalGas">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Equipment</div>
+    <div class="value" id="weekTotalEquip">00:00:00</div>
+  </div>
+</div>
+
+<div class="grid3" style="margin-top:10px;">
+  <div class="metric">
+    <div class="label">Other</div>
+    <div class="value" id="weekTotalOther">00:00:00</div>
+  </div>
+  <div class="metric" style="opacity:0;">
+    <div class="label">—</div>
+    <div class="value">—</div>
+  </div>
+  <div class="metric" style="opacity:0;">
+    <div class="label">—</div>
+    <div class="value">—</div>
+  </div>
+</div>
 
   <div class="hint" id="weekHint">Counts days saved on this phone for the current week (Mon–Sun).</div>
 </section>
@@ -139,6 +195,27 @@
       <div id="logList" class="logList"></div>
     </section>
   </main>
+
+<!-- Export/Share Range Modal -->
+<div id="rangeModal" class="modalOverlay" style="display:none;">
+  <div class="modalCard">
+    <div class="modalTitle" id="rangeModalTitle">Export</div>
+
+    <div class="modalBody">
+      <label class="modalOption"><input type="radio" name="rangePick" value="today" checked> Today</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="yesterday"> Yesterday</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="thisWeek"> This Week (Mon–Sun)</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="lastWeek"> Last Week (Mon–Sun)</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="thisMonth"> This Month</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="lastMonth"> Last Month</label>
+    </div>
+
+    <div class="modalActions">
+      <button class="btn subtle" id="rangeCancelBtn">Cancel</button>
+      <button class="btn primary" id="rangeGoBtn">Continue</button>
+    </div>
+  </div>
+</div>
 
   <script src="app.js"></script>
 </body>

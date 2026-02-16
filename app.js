@@ -16,17 +16,24 @@ const els = {
   totalBreak: document.getElementById("totalBreak"),
   totalGas: document.getElementById("totalGas"),
   totalEquip: document.getElementById("totalEquip"),
+  dayStops: document.getElementById("dayStops"),
+  dayPctMow: document.getElementById("dayPctMow"),
+  dayPctDrive: document.getElementById("dayPctDrive"),
 
-
+  weekStops: document.getElementById("weekStops"),
   weekTotalAll: document.getElementById("weekTotalAll"),
   weekTotalDrive: document.getElementById("weekTotalDrive"),
   weekTotalMow: document.getElementById("weekTotalMow"),
   weekTotalOther: document.getElementById("weekTotalOther"),
+  weekTotalBreak: document.getElementById("weekTotalBreak"),
+  weekTotalGas: document.getElementById("weekTotalGas"),
+  weekTotalEquip: document.getElementById("weekTotalEquip"),
   weekPctMow: document.getElementById("weekPctMow"),
   weekPctDrive: document.getElementById("weekPctDrive"),
   refreshWeekBtn: document.getElementById("refreshWeekBtn"),
 
   startDayBtn: document.getElementById("startDayBtn"),
+  pauseDayBtn: document.getElementById("pauseDayBtn"),
   endDayBtn: document.getElementById("endDayBtn"),
   driveBtn: document.getElementById("driveBtn"),
   mowBtn: document.getElementById("mowBtn"),
@@ -36,7 +43,16 @@ const els = {
   equipBtn: document.getElementById("equipBtn"),
   undoBtn: document.getElementById("undoBtn"),
   resetBtn: document.getElementById("resetBtn"),
-  exportBtn: document.getElementById("exportBtn"),
+  exportBtn2: document.getElementById("exportBtn2"),
+  shareBtn2: document.getElementById("shareBtn2"),
+  rangeModal: document.getElementById("rangeModal"),
+  rangeModalTitle: document.getElementById("rangeModalTitle"),
+  rangeCancelBtn: document.getElementById("rangeCancelBtn"),
+  rangeGoBtn: document.getElementById("rangeGoBtn"),
+  shareBackupBtn: document.getElementById("shareBackupBtn"),
+  backupBtn: document.getElementById("backupBtn"),
+  restoreBtn: document.getElementById("restoreBtn"),
+  restoreFile: document.getElementById("restoreFile"),
 
   logList: document.getElementById("logList"),
 };
@@ -80,7 +96,12 @@ function loadState() {
     // Basic shape guard
     if (!s || typeof s !== "object") return makeEmptyState();
     if (!Array.isArray(s.segments)) s.segments = [];
-    return s;
+if (typeof s.isPaused !== "boolean") s.isPaused = false;
+if (s.pausedAt == null) s.pausedAt = null;
+if (s.pausedMode == null) s.pausedMode = null;
+if (typeof s.stopCount !== "number") s.stopCount = 0;
+return s;
+
   } catch {
     return makeEmptyState();
   }
@@ -94,25 +115,46 @@ function makeEmptyState() {
   return {
     dayStartedAt: null,
     dayEndedAt: null,
-    activeMode: null,          // "drive" | "mow" | "other" | null
-    activeStartedAt: null,     // timestamp
-    segments: [],              // { mode, start, end }
-    history: [],               // stack for undo: snapshots
+
+    isPaused: false,
+    pausedAt: null,
+    pausedMode: null,
+
+    activeMode: null,
+    activeStartedAt: null,
+
+    stopCount: 0,   // increments ONLY when user taps Mow
+
+    segments: [],
+    history: [],
   };
 }
 
 let state = loadState();
 let tickTimer = null;
+let lastExportBlob = null;
+let lastExportFilename = null;
+
+let lastBackupBlob = null;
+let lastBackupFilename = null;
 
 // Save a snapshot for Undo
 function pushUndoSnapshot() {
   const snapshot = JSON.stringify({
-    dayStartedAt: state.dayStartedAt,
-    dayEndedAt: state.dayEndedAt,
-    activeMode: state.activeMode,
-    activeStartedAt: state.activeStartedAt,
-    segments: state.segments,
-  });
+  dayStartedAt: state.dayStartedAt,
+  dayEndedAt: state.dayEndedAt,
+
+  isPaused: state.isPaused,
+  pausedAt: state.pausedAt,
+  pausedMode: state.pausedMode,
+
+  activeMode: state.activeMode,
+  activeStartedAt: state.activeStartedAt,
+
+  stopCount: state.stopCount,
+
+  segments: state.segments,
+});
   state.history.push(snapshot);
   // keep last 30 actions
   if (state.history.length > 30) state.history.shift();
@@ -184,9 +226,14 @@ function switchMode(mode) {
     });
   }
 
-  // open new segment
-  state.activeMode = mode;
-  state.activeStartedAt = t;
+  // If user explicitly taps Mow, count a stop
+if (mode === "mow") {
+  state.stopCount = (state.stopCount || 0) + 1;
+}
+
+// open new segment
+state.activeMode = mode;
+state.activeStartedAt = t;
 
   saveState(state);
   render();
@@ -213,8 +260,12 @@ function computeTotals() {
     totals[state.activeMode] += Math.max(0, liveDur);
   }
 
-  const totalAll = totals.drive + totals.mow + totals.other;
-  return { totals, totalAll };
+  // Stops = number of times Mow was started
+  // Count completed mow segments + current active mow segment (counts as started)
+  const stops = state.stopCount || 0;
+
+  const totalAll = totals.drive + totals.mow + totals.break + totals.gas + totals.equip + totals.other;
+  return { totals, totalAll, stops };
 }
 
 function renderLog() {
@@ -275,6 +326,7 @@ function renderLog() {
 }
 
 function setButtonEnabled(btn, enabled) {
+  if (!btn) return; // prevents crashes if an element is missing/renamed
   btn.disabled = !enabled;
   btn.style.opacity = enabled ? "1" : "0.45";
 }
@@ -292,6 +344,9 @@ function render() {
   const started = !!state.dayStartedAt;
   const ended = !!state.dayEndedAt;
   const active = state.activeMode;
+if (els.pauseDayBtn) {
+  els.pauseDayBtn.textContent = state.isPaused ? "Resume Day" : "Pause Day";
+}
 
   els.dayStatus.textContent = started
     ? ended
@@ -301,7 +356,7 @@ function render() {
 
   els.modeStatus.textContent = active ? `Mode: ${active.toUpperCase()}` : "Mode: —";
 
-  const { totals, totalAll } = computeTotals();
+  const { totals, totalAll, stops } = computeTotals();
   els.totalAll.textContent = fmtTime(totalAll);
   els.totalDrive.textContent = fmtTime(totals.drive);
   els.totalMow.textContent = fmtTime(totals.mow);
@@ -309,6 +364,9 @@ function render() {
   els.totalGas.textContent = fmtTime(totals.gas);
   els.totalEquip.textContent = fmtTime(totals.equip);
   els.totalOther.textContent = fmtTime(totals.other);
+  if (els.dayStops) els.dayStops.textContent = String(stops);
+  if (els.dayPctMow) els.dayPctMow.textContent = msToPct(totals.mow, totalAll);
+  if (els.dayPctDrive) els.dayPctDrive.textContent = msToPct(totals.drive, totalAll);
 
   if (!started) els.hintText.innerHTML = 'Tap <b>Start Day</b> to begin.';
   else if (ended) els.hintText.innerHTML = 'Day ended. You can <b>Export CSV</b> or <b>Reset today</b>.';
@@ -318,16 +376,20 @@ function render() {
   setButtonEnabled(els.startDayBtn, !started || ended);
   setButtonEnabled(els.endDayBtn, started && !ended);
 
-  setButtonEnabled(els.driveBtn, started && !ended);
-  setButtonEnabled(els.mowBtn, started && !ended);
-  setButtonEnabled(els.otherBtn, started && !ended);
-  setButtonEnabled(els.breakBtn, started && !ended);
-  setButtonEnabled(els.gasBtn, started && !ended);
-  setButtonEnabled(els.equipBtn, started && !ended);
+  setButtonEnabled(els.driveBtn, started && !ended && !state.isPaused);
+  setButtonEnabled(els.mowBtn, started && !ended && !state.isPaused);
+  setButtonEnabled(els.otherBtn, started && !ended && !state.isPaused);
+  setButtonEnabled(els.breakBtn, started && !ended && !state.isPaused);
+  setButtonEnabled(els.gasBtn, started && !ended && !state.isPaused);
+  setButtonEnabled(els.equipBtn, started && !ended && !state.isPaused);
+  setButtonEnabled(els.pauseDayBtn, started && !ended);
 
   setButtonEnabled(els.undoBtn, state.history.length > 0);
   setButtonEnabled(els.exportBtn, started);
   setButtonEnabled(els.resetBtn, true);
+
+  setButtonEnabled(els.exportBtn2, started);
+  setButtonEnabled(els.shareBtn2, started);
 
   // highlight active mode button
   for (const m of MODES) {
@@ -337,6 +399,27 @@ function render() {
 
   renderLog();
   renderWeek(); 
+}
+
+function exportWeekCSV() {
+  const weekStart = startOfWeekKey(new Date());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  const dates = listStoredDatesInRange(weekStart, weekEnd);
+  const csv = buildCsvForDates(dates);
+
+  downloadCsv(csv, `mow-tracker-week-${ymdLocal(weekStart)}.csv`);
+}
+
+function exportMonthCSV() {
+  const start = startOfMonth(new Date());
+  const end = endOfMonth(new Date());
+
+  const dates = listStoredDatesInRange(start, end);
+  const csv = buildCsvForDates(dates);
+
+  downloadCsv(csv, `mow-tracker-month-${ymdLocal(start).slice(0, 7)}.csv`);
 }
 
 function exportCSV() {
@@ -434,14 +517,21 @@ function loadDayStateByDate(dateStr) {
 }
 
 function computeTotalsForState(dayState) {
-  const totals = { drive: 0, mow: 0, other: 0 };
+  const totals = { drive: 0, mow: 0, break: 0, gas: 0, equip: 0, other: 0 };
+
   for (const seg of dayState.segments || []) {
     if (!seg || !seg.mode || seg.start == null || seg.end == null) continue;
     const dur = Math.max(0, seg.end - seg.start);
     if (totals[seg.mode] != null) totals[seg.mode] += dur;
   }
-  const totalAll = totals.drive + totals.mow + totals.other;
-  return { totals, totalAll };
+
+  // Stops = number of times Mow was started that day
+  const stops = Number(dayState.stopCount || 0);
+
+  const totalAll =
+    totals.drive + totals.mow + totals.break + totals.gas + totals.equip + totals.other;
+
+  return { totals, totalAll, stops };
 }
 
 function computeThisWeekTotals() {
@@ -449,7 +539,8 @@ function computeThisWeekTotals() {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekEnd.getDate() + 7);
 
-  const sum = { drive: 0, mow: 0, other: 0 };
+  const sum = { drive: 0, mow: 0, break: 0, gas: 0, equip: 0, other: 0 };
+  let sumStops = 0;
 
   for (const storageKey of allStoredDayKeys()) {
     const dateStr = parseDayKey(storageKey);
@@ -461,28 +552,491 @@ function computeThisWeekTotals() {
     const dayState = loadDayStateByDate(dateStr);
     if (!dayState) continue;
 
-    const { totals } = computeTotalsForState(dayState);
-    sum.drive += totals.drive;
-    sum.mow += totals.mow;
-    sum.other += totals.other;
+    const { totals, stops } = computeTotalsForState(dayState);
+      sumStops += stops;
+      sum.drive += totals.drive;
+      sum.mow += totals.mow;
+      sum.break += totals.break;
+      sum.gas += totals.gas;
+      sum.equip += totals.equip;
+      sum.other += totals.other;
   }
 
-  const totalAll = sum.drive + sum.mow + sum.other;
-  return { sum, totalAll };
+  const totalAll = sum.drive + sum.mow + sum.break + sum.gas + sum.equip + sum.other;
+  return { sum, totalAll, sumStops };
 }
 
 function renderWeek() {
-  if (!els.weekTotalAll) return; // if section not present
+  if (!els.weekTotalAll) return; // weekly section not present
 
-  const { sum, totalAll } = computeThisWeekTotals();
+  // Always compute first, then use the values
+  const { sum, totalAll, sumStops } = computeThisWeekTotals();
 
   els.weekTotalAll.textContent = fmtTime(totalAll);
   els.weekTotalDrive.textContent = fmtTime(sum.drive);
   els.weekTotalMow.textContent = fmtTime(sum.mow);
-  els.weekTotalOther.textContent = fmtTime(sum.other);
 
-  els.weekPctMow.textContent = msToPct(sum.mow, totalAll);
-  els.weekPctDrive.textContent = msToPct(sum.drive, totalAll);
+  // New weekly category totals
+  if (els.weekTotalBreak) els.weekTotalBreak.textContent = fmtTime(sum.break);
+  if (els.weekTotalGas) els.weekTotalGas.textContent = fmtTime(sum.gas);
+  if (els.weekTotalEquip) els.weekTotalEquip.textContent = fmtTime(sum.equip);
+
+  if (els.weekTotalOther) els.weekTotalOther.textContent = fmtTime(sum.other);
+
+  // Weekly stops + percentages
+  if (els.weekStops) els.weekStops.textContent = String(sumStops);
+  if (els.weekPctMow) els.weekPctMow.textContent = msToPct(sum.mow, totalAll);
+  if (els.weekPctDrive) els.weekPctDrive.textContent = msToPct(sum.drive, totalAll);
+}
+
+function ymdLocal(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function startOfMonth(date = new Date()) {
+  const d = new Date(date);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfMonth(date = new Date()) {
+  const d = startOfMonth(date);
+  d.setMonth(d.getMonth() + 1);
+  return d; // exclusive end
+}
+
+function listStoredDatesInRange(startDate, endDateExclusive) {
+  const keys = allStoredDayKeys(); // existing helper
+  const dates = [];
+
+  for (const k of keys) {
+    const dateStr = parseDayKey(k); // existing helper
+    if (!dateStr) continue;
+    const d = new Date(dateStr + "T00:00:00");
+    if (d >= startDate && d < endDateExclusive) dates.push(dateStr);
+  }
+
+  dates.sort(); // chronological
+  return dates;
+}
+
+function buildCsvForDates(dateStrs) {
+  // Header row
+  const rows = [];
+  rows.push([
+    "date",
+    "day_started_at",
+    "day_ended_at",
+    "stops",
+    "total_seconds",
+    "drive_seconds",
+    "mow_seconds",
+    "break_seconds",
+    "gas_seconds",
+    "equip_seconds",
+    "other_seconds",
+  ]);
+
+  for (const dateStr of dateStrs) {
+    const dayState = loadDayStateByDate(dateStr);
+    if (!dayState) continue;
+
+    const { totals, totalAll, stops } = computeTotalsForState(dayState);
+
+    rows.push([
+      dateStr,
+      dayState.dayStartedAt ? new Date(dayState.dayStartedAt).toISOString() : "",
+      dayState.dayEndedAt ? new Date(dayState.dayEndedAt).toISOString() : "",
+      String(stops ?? 0),
+      String(Math.floor(totalAll / 1000)),
+      String(Math.floor(totals.drive / 1000)),
+      String(Math.floor(totals.mow / 1000)),
+      String(Math.floor(totals.break / 1000)),
+      String(Math.floor(totals.gas / 1000)),
+      String(Math.floor(totals.equip / 1000)),
+      String(Math.floor(totals.other / 1000)),
+    ]);
+  }
+
+  const csv = rows
+    .map(r => r.map(v => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s;
+    }).join(","))
+    .join("\n");
+
+  return csv;
+}
+
+function downloadCsv(csvText, filename) {
+  const blob = new Blob([csvText], { type: "text/csv" });
+
+  // store for sharing
+  lastExportBlob = blob;
+  lastExportFilename = filename;
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function shareBlob(blob, filename, mimeType) {
+  if (!blob) {
+    alert("Nothing to share yet. Export or backup first.");
+    return;
+  }
+
+  // Try Web Share with files (best on iPhone)
+  try {
+    const file = new File([blob], filename, { type: mimeType });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: filename,
+        files: [file],
+      });
+      return;
+    }
+  } catch (e) {
+    // fall through to fallback
+  }
+
+  // Fallback: trigger a download if sharing isn't available
+  alert("Sharing isn't available here. Downloading instead.");
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function shareLastExport() {
+  shareBlob(lastExportBlob, lastExportFilename || "mow-tracker-export.csv", "text/csv");
+}
+
+function shareLastBackup() {
+  shareBlob(lastBackupBlob, lastBackupFilename || "mow-tracker-backup.json", "application/json");
+}
+
+function requestRestoreBackup() {
+  // open the hidden file picker
+  if (els.restoreFile) {
+    els.restoreFile.value = ""; // allow selecting same file twice
+    els.restoreFile.click();
+  }
+}
+
+function restoreBackupFromFile(file) {
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const payload = JSON.parse(String(reader.result || ""));
+
+      if (!payload || payload.kind !== "mow-tracker-backup" || typeof payload.data !== "object") {
+        alert("That file doesn't look like a Mow Tracker backup JSON.");
+        return;
+      }
+
+      const entries = Object.entries(payload.data);
+      if (entries.length === 0) {
+        alert("Backup file contains no saved days.");
+        return;
+      }
+
+      // Restore strategy: MERGE + OVERWRITE matching days (safe)
+      // We do NOT clear everything; we only set keys included in the backup.
+      for (const [k, v] of entries) {
+        if (typeof k !== "string" || !k.startsWith("mowtracker:")) continue;
+        if (typeof v !== "string") continue;
+        localStorage.setItem(k, v);
+      }
+
+      // Reload today's state from storage and redraw
+      state = loadState();
+      render();
+      renderWeek();
+
+      alert(`Restore complete. Restored ${entries.length} day(s).`);
+    } catch (e) {
+      alert("Restore failed. The JSON file may be corrupted or not a valid backup.");
+    }
+  };
+
+  reader.readAsText(file);
+}
+
+function pauseOrResumeDay() {
+  if (!state.dayStartedAt || state.dayEndedAt) return;
+
+  if (!state.isPaused) {
+    // PAUSE
+    pushUndoSnapshot();
+
+    const t = nowMs();
+
+    // close current segment if one is running
+    if (state.activeMode && state.activeStartedAt) {
+      state.segments.push({
+        mode: state.activeMode,
+        start: state.activeStartedAt,
+        end: t,
+      });
+    }
+
+    state.isPaused = true;
+    state.pausedAt = t;
+    state.pausedMode = state.activeMode; // remember what we were doing
+
+    state.activeMode = null;
+    state.activeStartedAt = null;
+
+    saveState(state);
+    render();
+    return;
+  }
+
+  // RESUME
+  pushUndoSnapshot();
+
+  const t = nowMs();
+  state.isPaused = false;
+  state.pausedAt = null;
+
+  // resume into the previous mode IF there was one
+  if (state.pausedMode) {
+    state.activeMode = state.pausedMode;
+    state.activeStartedAt = t;
+  }
+
+  state.pausedMode = null;
+
+  saveState(state);
+  render();
+}
+
+function startOfWeek(date = new Date()) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun
+  const diff = (day === 0 ? -6 : 1 - day); // Monday start
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function startOfMonth(date = new Date()) {
+  const d = new Date(date);
+  d.setDate(1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function endOfMonth(date = new Date()) {
+  const d = startOfMonth(date);
+  d.setMonth(d.getMonth() + 1);
+  return d; // exclusive
+}
+
+function ymdLocal(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function listStoredDatesInRange(startDate, endDateExclusive) {
+  const keys = allStoredDayKeys(); // existing helper
+  const dates = [];
+
+  for (const k of keys) {
+    const dateStr = parseDayKey(k); // existing helper
+    if (!dateStr) continue;
+    const d = new Date(dateStr + "T00:00:00");
+    if (d >= startDate && d < endDateExclusive) dates.push(dateStr);
+  }
+
+  dates.sort(); // chronological
+  return dates;
+}
+
+function getRangeSpec(rangeKey) {
+  const now = new Date();
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  const labelDay = (d) => ymdLocal(d);
+
+  const labelWeek = (start) => {
+    const endInclusive = addDays(start, 6);
+    return `week-${labelDay(start)}_to_${labelDay(endInclusive)}`;
+  };
+
+  const labelMonth = (start) => {
+    const endExclusive = endOfMonth(start);
+    const endInclusive = addDays(endExclusive, -1);
+    return `month-${labelDay(start)}_to_${labelDay(endInclusive)}`;
+  };
+
+  if (rangeKey === "today") {
+    const start = today;
+    const end = addDays(start, 1);
+    return { start, end, label: labelDay(start) };
+  }
+
+  if (rangeKey === "yesterday") {
+    const start = addDays(today, -1);
+    const end = addDays(start, 1);
+    return { start, end, label: labelDay(start) };
+  }
+
+  if (rangeKey === "thisWeek") {
+    const start = startOfWeek(now);
+    const end = addDays(start, 7);
+    return { start, end, label: labelWeek(start) };
+  }
+
+  if (rangeKey === "lastWeek") {
+    const thisStart = startOfWeek(now);
+    const start = addDays(thisStart, -7);
+    const end = thisStart;
+    return { start, end, label: labelWeek(start) };
+  }
+
+  if (rangeKey === "thisMonth") {
+    const start = startOfMonth(now);
+    const end = endOfMonth(now);
+    return { start, end, label: labelMonth(start) };
+  }
+
+  if (rangeKey === "lastMonth") {
+    const thisStart = startOfMonth(now);
+    const lastMonthAnyDay = addDays(thisStart, -1); // last day of previous month
+    const start = startOfMonth(lastMonthAnyDay);
+    const end = endOfMonth(lastMonthAnyDay);
+    return { start, end, label: labelMonth(start) };
+  }
+
+  // fallback
+  const start = today;
+  const end = addDays(start, 1);
+  return { start, end, label: labelDay(start) };
+}
+
+async function shareTextAsFile({ text, filename, mimeType }) {
+  try {
+    const file = new File([text], filename, { type: mimeType });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ title: filename, files: [file] });
+      return true;
+    }
+  } catch (e) {
+    // fall through
+  }
+  return false;
+}
+
+function exportSelectedRangeCSV(rangeKey = "today") {
+  const { start, end, label } = getRangeSpec(rangeKey);
+  const dates = listStoredDatesInRange(start, end);
+  const csv = buildCsvForDates(dates);
+  downloadCsv(csv, `mow-tracker-${label}.csv`);
+}
+
+async function shareSelectedRangeCSV(rangeKey = "today") {
+  const { start, end, label } = getRangeSpec(rangeKey);
+  const dates = listStoredDatesInRange(start, end);
+  const csv = buildCsvForDates(dates);
+  const filename = `mow-tracker-${label}.csv`;
+
+  const ok = await shareTextAsFile({ text: csv, filename, mimeType: "text/csv" });
+  if (!ok) {
+    downloadCsv(csv, filename);
+    alert("Sharing isn't available here. Downloaded instead.");
+  }
+}
+
+function buildBackupPayload() {
+  const prefix = "mowtracker:";
+  const all = {};
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k || !k.startsWith(prefix)) continue;
+    all[k] = localStorage.getItem(k);
+  }
+
+  return {
+    kind: "mow-tracker-backup",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    data: all,
+  };
+}
+
+function exportBackupJSON() {
+  const payload = buildBackupPayload();
+  const json = JSON.stringify(payload, null, 2);
+
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `mow-tracker-backup-${todayKey()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function shareBackupJSON() {
+  const payload = buildBackupPayload();
+  const json = JSON.stringify(payload, null, 2);
+  const filename = `mow-tracker-backup-${todayKey()}.json`;
+
+  const ok = await shareTextAsFile({ text: json, filename, mimeType: "application/json" });
+  if (!ok) {
+    exportBackupJSON();
+    alert("Sharing isn't available here. Downloaded instead.");
+  }
+}
+
+let pendingRangeAction = null; // "export" | "share"
+
+function openRangeModal(action) {
+  pendingRangeAction = action;
+  if (els.rangeModalTitle) els.rangeModalTitle.textContent = action === "share" ? "Share CSV" : "Export CSV";
+  if (els.rangeModal) els.rangeModal.style.display = "flex";
+}
+
+function closeRangeModal() {
+  pendingRangeAction = null;
+  if (els.rangeModal) els.rangeModal.style.display = "none";
+}
+
+function getPickedRangeKey() {
+  const picked = document.querySelector('input[name="rangePick"]:checked');
+  return picked ? picked.value : "today";
 }
 
 function setup() {
@@ -492,6 +1046,7 @@ function setup() {
   }
 
   els.startDayBtn.addEventListener("click", startDay);
+  els.pauseDayBtn?.addEventListener("click", pauseOrResumeDay);
   els.endDayBtn.addEventListener("click", endDay);
 
   els.driveBtn.addEventListener("click", () => switchMode("drive"));
@@ -501,11 +1056,37 @@ function setup() {
   els.gasBtn.addEventListener("click", () => switchMode("gas"));
   els.equipBtn.addEventListener("click", () => switchMode("equip"));
 
+  els.backupBtn?.addEventListener("click", exportBackupJSON);
+  els.shareBackupBtn?.addEventListener("click", shareBackupJSON);
   els.undoBtn.addEventListener("click", undo);
   els.resetBtn.addEventListener("click", resetToday);
-  els.exportBtn.addEventListener("click", exportCSV);
+  if (els.exportBtn) els.exportBtn.addEventListener("click", exportCSV);
+  els.backupBtn?.addEventListener("click", exportBackupJSON);
+  els.restoreBtn?.addEventListener("click", requestRestoreBackup);
+  els.restoreFile?.addEventListener("change", (e) => restoreBackupFromFile(e.target.files?.[0]));
+  els.exportBtn2?.addEventListener("click", () => openRangeModal("export"));
+  els.shareBtn2?.addEventListener("click", () => openRangeModal("share"));
 
-  els.refreshWeekBtn.addEventListener("click", renderWeek);
+  els.rangeCancelBtn?.addEventListener("click", closeRangeModal);
+
+  // clicking outside the card closes it
+  els.rangeModal?.addEventListener("click", (e) => {
+    if (e.target === els.rangeModal) closeRangeModal();
+  });
+
+  els.rangeGoBtn?.addEventListener("click", async () => {
+    const rangeKey = getPickedRangeKey();
+    const action = pendingRangeAction;
+    closeRangeModal();
+
+    if (action === "share") {
+      await shareSelectedRangeCSV(rangeKey);
+    } else {
+      exportSelectedRangeCSV(rangeKey);
+    }
+  });
+
+  if (els.refreshWeekBtn) els.refreshWeekBtn.addEventListener("click", renderWeek);
 
   // Keep updating live timers while day is running
   clearInterval(tickTimer);
