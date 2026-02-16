@@ -29,6 +29,12 @@
 
   <main class="wrap">
     <section class="totals card">
+     <div class="activeBar" id="activeBar">
+     <div class="activeLabel" id="activeLabel">—</div>
+     <div class="activeTime" id="activeTime">00:00:00</div>
+    </div>
+
+  <button class="btn tiny subtle" id="viewToggleBtn" type="button">Hold for Dashboard</button>
       <div class="row">
         <div class="metric">
           <div class="label">Total</div>
@@ -88,13 +94,10 @@
       <button class="btn primary" id="startDayBtn">Start Day</button>
       <button class="btn subtle" id="pauseDayBtn">Pause Day</button>
 
-      <div class="grid3">
+      <div class="grid2 fieldGrid">
   <button class="btn" id="driveBtn">Drive</button>
   <button class="btn" id="mowBtn">Mow</button>
   <button class="btn" id="breakBtn">Break</button>
-</div>
-
-<div class="grid3">
   <button class="btn" id="gasBtn">Gas</button>
   <button class="btn" id="equipBtn">Equipment</button>
   <button class="btn" id="otherBtn">Other</button>
@@ -187,7 +190,7 @@
   <div class="hint" id="weekHint">Counts days saved on this phone for the current week (Mon–Sun).</div>
 </section>
 
-    <section class="card log">
+    <section class="card log" id="logCard">
       <div class="logHeader">
         <div class="logTitle">Today’s log</div>
         <button class="btn tiny" id="exportBtn">Export CSV</button>

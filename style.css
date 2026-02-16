@@ -162,3 +162,106 @@ body {
   gap: 10px;
 }
 
+/* Active banner */
+.activeBar{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,0.10);
+  border-radius:14px;
+  margin-bottom:12px;
+}
+
+.activeLabel{
+  font-weight:800;
+  letter-spacing:0.5px;
+  opacity:0.95;
+}
+
+.activeTime{
+  font-weight:900;
+  font-size:22px;
+}
+
+/* ============================
+   FIELD MODE (day running)
+   ============================ */
+
+/* Hide non-field sections while running */
+.field-mode #weekCard,
+.field-mode #logCard {
+  display: none !important;
+}
+
+/* Field mode: totals card shows ONLY active + total */
+.field-mode .totals.card .grid3,
+.field-mode .totals.card #hintText {
+  display: none !important;
+}
+
+/* Active banner and total should feel prominent */
+.field-mode .activeBar {
+  margin-bottom: 10px;
+}
+
+.field-mode .totals.card .row .value {
+  font-size: 28px;
+  font-weight: 900;
+}
+
+/* Hide Start Day / Undo / Reset in field mode (cleaner) */
+.field-mode #startDayBtn,
+.field-mode #undoBtn,
+.field-mode #resetBtn {
+  display: none !important;
+}
+
+/* Make the buttons card feel like a control panel */
+.field-mode .buttons.card {
+  padding-top: 14px;
+}
+
+/* Make Pause + End full-width and large */
+.field-mode #pauseDayBtn,
+.field-mode #endDayBtn {
+  width: 100%;
+  min-height: 64px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+/* Ensure the activity buttons are ALWAYS a 2-column grid */
+.field-mode .fieldGrid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+  margin: 12px 0;
+}
+
+/* Make activity buttons bigger in field mode */
+.field-mode .fieldGrid .btn {
+  min-height: 64px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+/* Optional: keep totals visible at top while scrolling */
+.field-mode .totals.card {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Hold-to-toggle view button */
+#viewToggleBtn {
+  width: 100%;
+  margin: 10px 0 12px;
+  opacity: 0.85;
+}
+
+/* Only show this control while day is running */
+body:not(.day-running) #viewToggleBtn {
+  display: none !important;
+}
+

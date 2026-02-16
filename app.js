@@ -54,6 +54,13 @@ const els = {
   restoreBtn: document.getElementById("restoreBtn"),
   restoreFile: document.getElementById("restoreFile"),
 
+  weekCard: document.getElementById("weekCard"),
+  logCard: document.getElementById("logCard"),
+  viewToggleBtn: document.getElementById("viewToggleBtn"),
+
+  activeBar: document.getElementById("activeBar"),
+  activeLabel: document.getElementById("activeLabel"),
+  activeTime: document.getElementById("activeTime"),
   logList: document.getElementById("logList"),
 };
 
@@ -138,6 +145,14 @@ let lastExportFilename = null;
 let lastBackupBlob = null;
 let lastBackupFilename = null;
 
+const UI_VIEW_KEY = "mowtracker:uiFullView";
+function getUiFullView() {
+  return localStorage.getItem(UI_VIEW_KEY) === "1";
+}
+function setUiFullView(v) {
+  localStorage.setItem(UI_VIEW_KEY, v ? "1" : "0");
+}
+
 // Save a snapshot for Undo
 function pushUndoSnapshot() {
   const snapshot = JSON.stringify({
@@ -203,6 +218,7 @@ function endDay() {
 
   state.dayEndedAt = nowMs();
   saveState(state);
+  setUiFullView(false);
   render();
 }
 
@@ -344,6 +360,44 @@ function render() {
   const started = !!state.dayStartedAt;
   const ended = !!state.dayEndedAt;
   const active = state.activeMode;
+
+  // Day running class for CSS-only behaviors
+document.body.classList.toggle("day-running", started && !ended);
+
+const uiFullView = getUiFullView();
+const fieldMode = started && !ended && !uiFullView;
+document.body.classList.toggle("field-mode", fieldMode);
+
+// Update view toggle button label
+if (els.viewToggleBtn) {
+  if (started && !ended) {
+    els.viewToggleBtn.textContent = uiFullView
+      ? "Hold to Return to Field"
+      : "Hold for Dashboard";
+  }
+}
+
+  // Active banner at top
+  if (els.activeBar && els.activeLabel && els.activeTime) {
+    if (!started) {
+      els.activeLabel.textContent = "NOT STARTED";
+      els.activeTime.textContent = "00:00:00";
+    } else if (ended) {
+      els.activeLabel.textContent = "ENDED";
+      els.activeTime.textContent = "00:00:00";
+    } else if (state.isPaused) {
+      const label = state.pausedMode ? `PAUSED (${state.pausedMode.toUpperCase()})` : "PAUSED";
+      els.activeLabel.textContent = label;
+      els.activeTime.textContent = "00:00:00";
+    } else if (active && state.activeStartedAt) {
+      els.activeLabel.textContent = `${active.toUpperCase()}`;
+      els.activeTime.textContent = fmtTime(nowMs() - state.activeStartedAt);
+    } else {
+      els.activeLabel.textContent = "READY";
+      els.activeTime.textContent = "00:00:00";
+    }
+  }
+
 if (els.pauseDayBtn) {
   els.pauseDayBtn.textContent = state.isPaused ? "Resume Day" : "Pause Day";
 }
@@ -393,9 +447,10 @@ if (els.pauseDayBtn) {
 
   // highlight active mode button
   for (const m of MODES) {
-    const b = els[`${m}Btn`];
-    b.style.outline = active === m ? "2px solid rgba(255,255,255,0.55)" : "none";
-  }
+  const b = els[`${m}Btn`];
+  if (!b) continue;
+  b.style.outline = active === m ? "2px solid rgba(255,255,255,0.55)" : "none";
+}
 
   renderLog();
   renderWeek(); 
@@ -1039,6 +1094,40 @@ function getPickedRangeKey() {
   return picked ? picked.value : "today";
 }
 
+function attachHoldToToggle(btn, onHold, holdMs = 700) {
+  if (!btn) return;
+  let timer = null;
+  let fired = false;
+
+  const start = (e) => {
+    e.preventDefault();
+    fired = false;
+    timer = setTimeout(() => {
+      fired = true;
+      onHold();
+    }, holdMs);
+  };
+
+  const cancel = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
+
+  btn.addEventListener("touchstart", start, { passive: false });
+  btn.addEventListener("touchend", cancel);
+  btn.addEventListener("touchcancel", cancel);
+
+  btn.addEventListener("mousedown", start);
+  btn.addEventListener("mouseup", cancel);
+  btn.addEventListener("mouseleave", cancel);
+
+  // prevent normal click from doing anything (avoid accidental taps)
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+}
+
 function setup() {
   // Register service worker for offline use
   if ("serviceWorker" in navigator) {
@@ -1068,6 +1157,12 @@ function setup() {
   els.shareBtn2?.addEventListener("click", () => openRangeModal("share"));
 
   els.rangeCancelBtn?.addEventListener("click", closeRangeModal);
+
+  attachHoldToToggle(els.viewToggleBtn, () => {
+    const next = !getUiFullView();
+    setUiFullView(next);
+    render(); // re-apply classes immediately
+  });
 
   // clicking outside the card closes it
   els.rangeModal?.addEventListener("click", (e) => {
