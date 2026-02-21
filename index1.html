@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#111111" />
+  <title>Mow Tracker</title>
+
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- iOS: allow home-screen app behavior -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+</head>
+
+<body>
+  <header class="top">
+    <div class="title">
+      <div class="appname">Mow Tracker</div>
+      <div class="date" id="todayLabel">—</div>
+    </div>
+
+    <div class="status">
+      <div class="badge" id="dayStatus">Day: Not started</div>
+      <div class="badge" id="modeStatus">Mode: —</div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="totals card">
+     <div class="activeBar" id="activeBar">
+     <div class="activeLabel" id="activeLabel">—</div>
+     <div class="activeTime" id="activeTime">00:00:00</div>
+    </div>
+
+  <button class="btn tiny subtle" id="viewToggleBtn" type="button">Hold for Dashboard</button>
+  <button class="btn tiny subtle" id="contrastBtn" type="button">High Contrast: Off</button>
+      <div class="row">
+        <div class="metric">
+          <div class="label">Total</div>
+          <div class="value" id="totalAll">00:00:00</div>
+        </div>
+      </div>
+
+      <div class="pillRow" id="effRow">
+        <div class="pill" id="effMow">MOW 0%</div>
+        <div class="pill" id="effDrive">DRIVE 0%</div>
+      </div>
+
+      <div class="dayMeta" id="dayMeta" style="display:none;">
+        <div><span class="k">Start:</span> <span id="dayStartText">—</span></div>
+        <div><span class="k">End:</span> <span id="dayEndText">—</span></div>
+      </div>
+
+<div class="grid3">
+  <div class="metric">
+    <div class="label">Drive</div>
+    <div class="value" id="totalDrive">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Mow</div>
+    <div class="value" id="totalMow">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Break</div>
+    <div class="value" id="totalBreak">00:00:00</div>
+  </div>
+</div>
+
+<div class="grid3">
+  <div class="metric">
+    <div class="label">Gas</div>
+    <div class="value" id="totalGas">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Equipment</div>
+    <div class="value" id="totalEquip">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Other</div>
+    <div class="value" id="totalOther">00:00:00</div>
+  </div>
+</div>
+
+<div class="grid3" style="margin-top:10px;">
+  <div class="metric">
+    <div class="label">Stops</div>
+    <div class="value" id="dayStops">0</div>
+  </div>
+  <div class="metric">
+    <div class="label">Mow %</div>
+    <div class="value" id="dayPctMow">0%</div>
+  </div>
+  <div class="metric">
+    <div class="label">Drive %</div>
+    <div class="value" id="dayPctDrive">0%</div>
+  </div>
+</div>
+
+      <div class="hint" id="hintText">Tap <b>Start Day</b> to begin.</div>
+    </section>
+
+    <section class="buttons card">
+      <button class="btn primary" id="startDayBtn">Start Day</button>
+      <button class="btn subtle" id="pauseDayBtn">Pause Day</button>
+
+      <div class="grid2 fieldGrid">
+  <button class="btn" id="driveBtn">Drive</button>
+  <button class="btn" id="mowBtn">Mow</button>
+  <button class="btn" id="breakBtn">Break</button>
+  <button class="btn" id="gasBtn">Gas</button>
+  <button class="btn" id="equipBtn">Equipment</button>
+  <button class="btn" id="otherBtn">Other</button>
+</div>
+
+      <button class="btn danger" id="endDayBtn">End Day</button>
+
+      <div class="grid2">
+        <button class="btn subtle" id="undoBtn">Undo last switch</button>
+        <button class="btn subtle" id="resetBtn">Reset today</button>
+      </div>
+    </section>
+
+<section class="card" id="weekCard">
+<div class="logHeader">
+  <div class="logTitle">This Week's log</div>
+  <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; align-items:center;">
+  <button class="btn tiny" id="exportBtn2">Export</button>
+  <button class="btn tiny" id="shareBtn2">Share</button>
+
+
+  <button class="btn tiny" id="backupBtn">Backup (JSON)</button>
+  <button class="btn tiny" id="shareBackupBtn">Share Backup</button>
+
+  <button class="btn tiny" id="restoreBtn">Restore</button>
+  <input type="file" id="restoreFile" accept="application/json,.json" style="display:none;" />
+ </div>
+</div>
+
+<div class="grid3">
+  <div class="metric">
+    <div class="label">Total</div>
+    <div class="value" id="weekTotalAll">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Drive</div>
+    <div class="value" id="weekTotalDrive">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Mow</div>
+    <div class="value" id="weekTotalMow">00:00:00</div>
+  </div>
+</div>
+
+<div class="grid3" style="margin-top:10px;">
+  <div class="metric">
+    <div class="label">Stops</div>
+    <div class="value" id="weekStops">0</div>
+  </div>
+  <div class="metric">
+    <div class="label">Mow %</div>
+    <div class="value" id="weekPctMow">0%</div>
+  </div>
+  <div class="metric">
+    <div class="label">Drive %</div>
+    <div class="value" id="weekPctDrive">0%</div>
+  </div>
+</div>
+
+<div class="grid3" style="margin-top:10px;">
+  <div class="metric">
+    <div class="label">Break</div>
+    <div class="value" id="weekTotalBreak">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Gas</div>
+    <div class="value" id="weekTotalGas">00:00:00</div>
+  </div>
+  <div class="metric">
+    <div class="label">Equipment</div>
+    <div class="value" id="weekTotalEquip">00:00:00</div>
+  </div>
+</div>
+
+<div class="grid3" style="margin-top:10px;">
+  <div class="metric">
+    <div class="label">Other</div>
+    <div class="value" id="weekTotalOther">00:00:00</div>
+  </div>
+  <div class="metric" style="opacity:0;">
+    <div class="label">—</div>
+    <div class="value">—</div>
+  </div>
+  <div class="metric" style="opacity:0;">
+    <div class="label">—</div>
+    <div class="value">—</div>
+  </div>
+</div>
+
+  <div class="hint" id="weekHint">Counts days saved on this phone for the current week (Mon–Sun).</div>
+</section>
+
+    <section class="card log" id="logCard">
+      <div class="logHeader">
+        <div class="logTitle">Today’s log</div>
+        <button class="btn tiny" id="exportBtn">Export CSV</button>
+      </div>
+      <div id="logList" class="logList"></div>
+    </section>
+  </main>
+
+<!-- Export/Share Range Modal -->
+<div id="rangeModal" class="modalOverlay" style="display:none;">
+  <div class="modalCard">
+    <div class="modalTitle" id="rangeModalTitle">Export</div>
+
+    <div class="modalBody">
+      <label class="modalOption"><input type="radio" name="rangePick" value="today" checked> Today</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="yesterday"> Yesterday</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="thisWeek"> This Week (Mon–Sun)</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="lastWeek"> Last Week (Mon–Sun)</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="thisMonth"> This Month</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="lastMonth"> Last Month</label>
+      <label class="modalOption"><input type="radio" name="rangePick" value="thisSeason"> This Season</label>
+    </div>
+
+    <div class="modalActions">
+      <button class="btn subtle" id="rangeCancelBtn">Cancel</button>
+      <button class="btn primary" id="rangeGoBtn">Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- End Day Confirm Modal -->
+<div id="endConfirmModal" class="modalOverlay" style="display:none;">
+  <div class="modalCard">
+    <div class="modalTitle">End Day?</div>
+    <div class="modalBody">
+      <div class="confirmText" id="endConfirmText">
+        You have recorded time today. End the day now?
+      </div>
+    </div>
+    <div class="modalActions">
+      <button class="btn subtle" id="endConfirmCancelBtn">Cancel</button>
+      <button class="btn danger" id="endConfirmGoBtn">End Day</button>
+    </div>
+  </div>
+</div>
+
+  <script src="app.js"></script>
+</body>
+</html>
