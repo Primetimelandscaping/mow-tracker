@@ -54,6 +54,19 @@ const els = {
   backupBtn: document.getElementById("backupBtn"),
   restoreBtn: document.getElementById("restoreBtn"),
   restoreFile: document.getElementById("restoreFile"),
+  effRow: document.getElementById("effRow"),
+  effMow: document.getElementById("effMow"),
+  effDrive: document.getElementById("effDrive"),
+
+  dayMeta: document.getElementById("dayMeta"),
+  dayStartText: document.getElementById("dayStartText"),
+  dayEndText: document.getElementById("dayEndText"),
+  contrastBtn: document.getElementById("contrastBtn"),
+
+  endConfirmModal: document.getElementById("endConfirmModal"),
+  endConfirmText: document.getElementById("endConfirmText"),
+  endConfirmCancelBtn: document.getElementById("endConfirmCancelBtn"),
+  endConfirmGoBtn: document.getElementById("endConfirmGoBtn"),
 
   weekCard: document.getElementById("weekCard"),
   logCard: document.getElementById("logCard"),
@@ -140,6 +153,16 @@ function makeEmptyState() {
 
 let state = loadState();
 let tickTimer = null;
+let lastModeSwitchAt = 0;
+const MODE_SWITCH_GUARD_MS = 250;
+const MIN_SEGMENT_MS = 2000;
+
+function pushSegmentIfNotTiny(mode, start, end) {
+  if (!mode || start == null || end == null) return;
+  const dur = Math.max(0, end - start);
+  if (dur < MIN_SEGMENT_MS) return; // discard micro segment
+  state.segments.push({ mode, start, end });
+}
 let lastExportBlob = null;
 let lastExportFilename = null;
 
@@ -150,6 +173,15 @@ const UI_VIEW_KEY = "mowtracker:uiFullView";
 function getUiFullView() {
   return localStorage.getItem(UI_VIEW_KEY) === "1";
 }
+
+const UI_CONTRAST_KEY = "mowtracker:uiHighContrast";
+function getUiHighContrast() {
+  return localStorage.getItem(UI_CONTRAST_KEY) === "1";
+}
+function setUiHighContrast(v) {
+  localStorage.setItem(UI_CONTRAST_KEY, v ? "1" : "0");
+}
+
 function setUiFullView(v) {
   localStorage.setItem(UI_VIEW_KEY, v ? "1" : "0");
 }
@@ -224,26 +256,25 @@ function startDay() {
   render();
 }
 
-
-function endDay() {
+function endDayAt(tEnd) {
   if (!state.dayStartedAt || state.dayEndedAt) return;
 
   pushUndoSnapshot();
-  // close active segment if any
+
   if (state.activeMode && state.activeStartedAt) {
-    state.segments.push({
-      mode: state.activeMode,
-      start: state.activeStartedAt,
-      end: nowMs(),
-    });
+    pushSegmentIfNotTiny(state.activeMode, state.activeStartedAt, tEnd);
     state.activeMode = null;
     state.activeStartedAt = null;
   }
 
-  state.dayEndedAt = nowMs();
+  state.dayEndedAt = tEnd;
   saveState(state);
   setUiFullView(false);
   render();
+}
+
+function endDay() {
+  endDayAt(nowMs());
 }
 
 function switchMode(mode) {
@@ -253,18 +284,20 @@ function switchMode(mode) {
   // If already in that mode, do nothing
   if (state.activeMode === mode) return;
 
-  pushUndoSnapshot();
-
   const t = nowMs();
 
-  // close prior segment
+  // Double-tap / jitter guard (prevents accidental rapid re-taps)
+  if (t - lastModeSwitchAt < MODE_SWITCH_GUARD_MS) return;
+  lastModeSwitchAt = t;
+
+  pushUndoSnapshot();
+
+
+    // close prior segment (discard micro segments)
   if (state.activeMode && state.activeStartedAt) {
-    state.segments.push({
-      mode: state.activeMode,
-      start: state.activeStartedAt,
-      end: t,
-    });
+    pushSegmentIfNotTiny(state.activeMode, state.activeStartedAt, t);
   }
+
 
   // If user explicitly taps Mow, count a stop
 if (mode === "mow") {
@@ -286,7 +319,8 @@ function resetToday() {
   render();
 }
 
-function computeTotals() {
+
+function computeTotals(nowOverrideMs) {
   const totals = { drive: 0, mow: 0, break: 0, gas: 0, equip: 0, other: 0 };
 
   for (const seg of state.segments) {
@@ -294,19 +328,21 @@ function computeTotals() {
     if (totals[seg.mode] != null) totals[seg.mode] += Math.max(0, dur);
   }
 
+  const now = (nowOverrideMs != null) ? nowOverrideMs : nowMs();
+
   // include live active segment
   if (state.activeMode && state.activeStartedAt && !state.dayEndedAt) {
-    const liveDur = nowMs() - state.activeStartedAt;
+    const liveDur = now - state.activeStartedAt;
     totals[state.activeMode] += Math.max(0, liveDur);
   }
 
-  // Stops = number of times Mow was started
-  // Count completed mow segments + current active mow segment (counts as started)
   const stops = state.stopCount || 0;
+  const totalAll =
+    totals.drive + totals.mow + totals.break + totals.gas + totals.equip + totals.other;
 
-  const totalAll = totals.drive + totals.mow + totals.break + totals.gas + totals.equip + totals.other;
   return { totals, totalAll, stops };
 }
+
 
 function renderLog() {
   els.logList.innerHTML = "";
@@ -401,6 +437,13 @@ if (els.viewToggleBtn) {
   }
 }
 
+const highContrast = getUiHighContrast();
+document.body.classList.toggle("high-contrast", highContrast);
+
+if (els.contrastBtn && started && !ended) {
+  els.contrastBtn.textContent = highContrast ? "High Contrast: On" : "High Contrast: Off";
+}
+
   // Active banner at top
   if (els.activeBar && els.activeLabel && els.activeTime) {
     if (!started) {
@@ -434,7 +477,25 @@ if (els.pauseDayBtn) {
 
   els.modeStatus.textContent = active ? `Mode: ${active.toUpperCase()}` : "Mode: —";
 
-  const { totals, totalAll, stops } = computeTotals();
+  const freezeNow = endConfirmOpenedAt != null ? endConfirmOpenedAt : undefined;
+  const { totals, totalAll, stops } = computeTotals(freezeNow);
+  // Efficiency pills (mow/drive %)
+  if (els.effMow) els.effMow.textContent = `MOW ${msToPct(totals.mow, totalAll)}`;
+  if (els.effDrive) els.effDrive.textContent = `DRIVE ${msToPct(totals.drive, totalAll)}`;
+
+  // Only show efficiency row once the day has started
+  if (els.effRow) els.effRow.style.display = started ? "flex" : "none";
+
+  // Day meta (start/end times) for nicer day summary
+  if (els.dayMeta) {
+    if (!started) {
+      els.dayMeta.style.display = "none";
+    } else {
+      els.dayMeta.style.display = "grid";
+      if (els.dayStartText) els.dayStartText.textContent = fmtClock(state.dayStartedAt);
+      if (els.dayEndText) els.dayEndText.textContent = ended ? fmtClock(state.dayEndedAt) : "—";
+    }
+  }
   els.totalAll.textContent = fmtTime(totalAll);
   els.totalDrive.textContent = fmtTime(totals.drive);
   els.totalMow.textContent = fmtTime(totals.mow);
@@ -552,6 +613,23 @@ function parseDayKey(storageKey) {
   return parts[1] || null;
 }
 
+function earliestStoredDate() {
+  const keys = allStoredDayKeys();
+  let earliest = null;
+
+  for (const k of keys) {
+    const dateStr = parseDayKey(k);
+    if (!dateStr) continue;
+
+    // only accept YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) continue;
+
+    if (!earliest || dateStr < earliest) earliest = dateStr; // lexicographic works for YYYY-MM-DD
+  }
+
+  return earliest; // string or null
+}
+
 function loadDayStateByDate(dateStr) {
   const raw = localStorage.getItem(`mowtracker:${dateStr}`);
   if (!raw) return null;
@@ -640,7 +718,7 @@ function renderWeek() {
 function buildCsvForDates(dateStrs) {
   // Header row
   const rows = [];
-  rows.push([
+    rows.push([
     "date",
     "day_started_at",
     "day_ended_at",
@@ -652,6 +730,8 @@ function buildCsvForDates(dateStrs) {
     "gas_seconds",
     "equip_seconds",
     "other_seconds",
+    "mow_pct",
+    "drive_pct",
   ]);
 
   for (const dateStr of dateStrs) {
@@ -659,6 +739,8 @@ function buildCsvForDates(dateStrs) {
     if (!dayState) continue;
 
     const { totals, totalAll, stops } = computeTotalsForState(dayState);
+    const mowPct = totalAll ? Math.round((totals.mow / totalAll) * 100) : 0;
+    const drivePct = totalAll ? Math.round((totals.drive / totalAll) * 100) : 0;
 
     rows.push([
       dateStr,
@@ -672,7 +754,10 @@ function buildCsvForDates(dateStrs) {
       String(Math.floor(totals.gas / 1000)),
       String(Math.floor(totals.equip / 1000)),
       String(Math.floor(totals.other / 1000)),
+      String(mowPct),
+      String(drivePct),
     ]);
+
   }
 
   const csv = rows
@@ -801,13 +886,9 @@ function pauseOrResumeDay() {
 
     const t = nowMs();
 
-    // close current segment if one is running
+        // close current segment if one is running (discard micro segments)
     if (state.activeMode && state.activeStartedAt) {
-      state.segments.push({
-        mode: state.activeMode,
-        start: state.activeStartedAt,
-        end: t,
-      });
+      pushSegmentIfNotTiny(state.activeMode, state.activeStartedAt, t);
     }
 
     state.isPaused = true;
@@ -948,6 +1029,23 @@ function getRangeSpec(rangeKey) {
     return { start, end, label: labelMonth(start) };
   }
 
+  if (rangeKey === "thisSeason") {
+    const earliest = earliestStoredDate();
+
+    // If no saved days exist, fall back to today
+    if (!earliest) {
+      const start = today;
+      const end = addDays(start, 1);
+      return { start, end, label: labelDay(start) };
+    }
+
+    const start = new Date(earliest + "T00:00:00");
+    const end = addDays(today, 1); // through today inclusive
+    const endInclusive = today;
+
+    return { start, end, label: `season-${ymdLocal(start)}_to_${ymdLocal(endInclusive)}` };
+  }
+
   // fallback
   const start = today;
   const end = addDays(start, 1);
@@ -1035,6 +1133,9 @@ async function shareBackupJSON() {
 }
 
 let pendingRangeAction = null; // "export" | "share"
+let endConfirmOpenedAt = null;
+let endConfirmAutoTimer = null;
+const END_CONFIRM_AUTO_CANCEL_MS = 10000;
 
 function openRangeModal(action) {
   pendingRangeAction = action;
@@ -1050,6 +1151,45 @@ function closeRangeModal() {
 function getPickedRangeKey() {
   const picked = document.querySelector('input[name="rangePick"]:checked');
   return picked ? picked.value : "today";
+}
+
+function openEndConfirmModal(totalAllMs) {
+  endConfirmOpenedAt = nowMs();
+
+  if (els.endConfirmText) {
+    const mins = Math.max(1, Math.round(totalAllMs / 60000));
+    els.endConfirmText.textContent = `You have recorded about ${mins} minute(s) today. End the day now?`;
+  }
+  if (els.endConfirmModal) els.endConfirmModal.style.display = "flex";
+
+  // auto-cancel after 10s
+  if (endConfirmAutoTimer) clearTimeout(endConfirmAutoTimer);
+  endConfirmAutoTimer = setTimeout(() => {
+    closeEndConfirmModal();
+  }, END_CONFIRM_AUTO_CANCEL_MS);
+}
+
+function closeEndConfirmModal() {
+  if (els.endConfirmModal) els.endConfirmModal.style.display = "none";
+  endConfirmOpenedAt = null;
+
+  if (endConfirmAutoTimer) clearTimeout(endConfirmAutoTimer);
+  endConfirmAutoTimer = null;
+
+  render(); // snap UI back to live
+}
+
+function requestEndDay() {
+  if (!state.dayStartedAt || state.dayEndedAt) return;
+
+  const { totalAll } = computeTotals(); // real now
+
+  if (totalAll > 0) {
+    openEndConfirmModal(totalAll);
+    return;
+  }
+
+  endDayAt(nowMs());
 }
 
 function attachHoldToToggle(btn, onHold, holdMs = 700) {
@@ -1094,7 +1234,7 @@ function setup() {
 
   els.startDayBtn.addEventListener("click", startDay);
   els.pauseDayBtn?.addEventListener("click", pauseOrResumeDay);
-  els.endDayBtn.addEventListener("click", endDay);
+  els.endDayBtn.addEventListener("click", requestEndDay);
 
   els.driveBtn.addEventListener("click", () => switchMode("drive"));
   els.mowBtn.addEventListener("click", () => switchMode("mow"));
@@ -1120,6 +1260,24 @@ function setup() {
     setUiFullView(next);
     render(); // re-apply classes immediately
   });
+
+els.contrastBtn?.addEventListener("click", () => {
+  const next = !getUiHighContrast();
+  setUiHighContrast(next);
+  render();
+});
+
+els.endConfirmCancelBtn?.addEventListener("click", closeEndConfirmModal);
+els.endConfirmGoBtn?.addEventListener("click", () => {
+  const tEnd = endConfirmOpenedAt ?? nowMs();
+  closeEndConfirmModal();
+  endDayAt(tEnd);
+});
+
+// clicking outside closes it
+els.endConfirmModal?.addEventListener("click", (e) => {
+  if (e.target === els.endConfirmModal) closeEndConfirmModal();
+});
 
   // clicking outside the card closes it
   els.rangeModal?.addEventListener("click", (e) => {

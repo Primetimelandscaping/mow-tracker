@@ -82,16 +82,19 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Active mode highlight */
+/* Active mode highlight: filled + black text */
 .btn.activeMode{
-  outline: 2px solid rgba(255,255,255,0.70);
+  background: rgba(245,245,245,0.92);
+  color: #000;
+  border-color: rgba(255,255,255,0.70);
+  outline: none;
   box-shadow: 0 0 0 3px rgba(255,255,255,0.10);
 }
 
-/* Make it extra obvious in Field Mode */
+/* Slightly stronger in Field Mode (still not “in your face”) */
 .field-mode .fieldGrid .btn.activeMode{
-  outline: 3px solid rgba(255,255,255,0.85);
-  box-shadow: 0 0 0 4px rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.12);
 }
 
 .btn:active { transform: scale(0.99); }
@@ -266,6 +269,28 @@ body {
   z-index: 10;
 }
 
+/* ============================
+   HIGH CONTRAST (toggle)
+   ============================ */
+
+body.high-contrast.field-mode .activeBar {
+  border-color: rgba(255,255,255,0.22);
+}
+
+body.high-contrast.field-mode .btn {
+  border-color: rgba(255,255,255,0.22);
+}
+
+body.high-contrast.field-mode .fieldGrid .btn {
+  font-size: 21px;
+  min-height: 68px;
+}
+
+body.high-contrast.field-mode .btn.activeMode{
+  outline: 4px solid rgba(255,255,255,0.92);
+  box-shadow: 0 0 0 5px rgba(255,255,255,0.16);
+}
+
 /* Hold-to-toggle view button */
 #viewToggleBtn {
   width: 100%;
@@ -276,5 +301,59 @@ body {
 /* Only show this control while day is running */
 body:not(.day-running) #viewToggleBtn {
   display: none !important;
+}
+
+#contrastBtn {
+  width: 100%;
+  margin: 0 0 12px;
+  opacity: 0.85;
+}
+
+/* Only show contrast toggle while day is running (dashboard control) */
+body:not(.day-running) #contrastBtn {
+  display: none !important;
+}
+
+/* Hide it in Field Mode to keep the field UI clean */
+.field-mode #contrastBtn {
+  display: none !important;
+}
+
+/* Optional text styling inside confirm modal */
+.confirmText {
+  color: var(--text);
+  opacity: 0.9;
+  line-height: 1.35;
+}
+
+/* Efficiency pills */
+.pillRow{
+  display:flex;
+  gap:10px;
+  margin-top:10px;
+  flex-wrap:wrap;
+}
+
+.pill{
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.05);
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+
+/* Day meta (start/end) */
+.dayMeta{
+  margin-top:10px;
+  color: var(--muted);
+  font-size: 13px;
+  display:grid;
+  gap:4px;
+}
+.dayMeta .k{
+  color: rgba(255,255,255,0.70);
+  font-weight: 700;
 }
 
